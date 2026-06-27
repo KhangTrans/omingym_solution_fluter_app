@@ -195,4 +195,17 @@ class AuthService {
       rethrow;
     }
   }
+
+  /// Thực hiện check-in cho khách hàng
+  Future<Response> customerCheckIn({required int branchId, String? dynamicQrToken}) async {
+    try {
+      final data = {
+        'branch_id': branchId,
+        if (dynamicQrToken != null) 'dynamic_qr_token': dynamicQrToken,
+      };
+      return await _dio.post(ApiEndpoints.checkIn, data: data);
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
