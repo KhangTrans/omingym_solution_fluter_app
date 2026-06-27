@@ -6,6 +6,9 @@ import '../main.dart';
 import '../services/auth_service.dart';
 import '../widgets/custom_text_field.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../config/env.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -64,6 +67,69 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
       
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Thông báo'),
+            content: Text(errorMsg),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Đóng', style: TextStyle(color: emerald500)),
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId: Env.googleServerClientId,
+        scopes: ['email', 'profile'],
+      );
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return; // User cancelled
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Không lấy được ID Token từ Google');
+      }
+
+      final response = await _authService.loginWithGoogle(idToken);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Chào mừng, ${response.data['user']['full_name']}!'),
+            backgroundColor: emerald500,
+          ),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      }
+    } catch (e) {
+      String errorMsg = 'Đăng nhập Google thất bại: $e';
+      if (e is DioException) {
+        if (e.response?.data != null) {
+          errorMsg = e.response?.data['message'] ?? e.toString();
+        } else {
+          errorMsg = 'Lỗi kết nối mạng: ${e.message}';
+        }
+      }
       if (mounted) {
         showDialog(
           context: context,
@@ -189,7 +255,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+                        );
+                      },
                       child: Text(
                         'Quên mật khẩu?',
                         style: GoogleFonts.inter(
@@ -229,6 +300,70 @@ class _LoginScreenState extends State<LoginScreen> {
                               letterSpacing: 1,
                             ),
                           ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Separator "Or"
+                Row(
+                  children: [
+                    const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'Hoặc',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: slate600,
+                        ),
+                      ),
+                    ),
+                    const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Google Login Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: OutlinedButton(
+                    onPressed: _isLoading ? null : _loginWithGoogle,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 20,
+                          height: 20,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: slate900, width: 1.5),
+                          ),
+                          child: Text(
+                            'G',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: slate900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Đăng nhập với Google',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: slate900,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),

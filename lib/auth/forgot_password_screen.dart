@@ -8,27 +8,24 @@ import '../widgets/custom_text_field.dart';
 import '../widgets/password_strength_bar.dart';
 import '../services/auth_service.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+class ForgotPasswordScreen extends StatefulWidget {
+  const ForgotPasswordScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _authService = AuthService();
 
   // Controllers
-  final _lastNameController = TextEditingController();
-  final _firstNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _otpController = TextEditingController();
   final _passwordController = TextEditingController();
 
   // State
   bool _isPasswordVisible = false;
-  bool _agreedToTerms = false;
   bool _isLoading = false;
   bool _isOTPSent = false;
   int _start = 120;
@@ -38,8 +35,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    _lastNameController.dispose();
-    _firstNameController.dispose();
     _emailController.dispose();
     _otpController.dispose();
     _passwordController.dispose();
@@ -81,17 +76,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await _authService.requestOTP(_emailController.text);
+      await _authService.forgotPassword(_emailController.text);
 
       setState(() {
         _isOTPSent = true;
         _isLoading = false;
       });
       _startTimer();
-      _showSnackBar('Mã xác thực đã được gửi tới email của bạn', const Color(0xFF10B981));
+      _showSnackBar('Mã khôi phục đã được gửi tới email của bạn', const Color(0xFF10B981));
     } catch (e) {
       setState(() => _isLoading = false);
-      String errorMsg = 'Không thể gửi OTP. Vui lòng thử lại.';
+      String errorMsg = 'Không thể gửi yêu cầu. Vui lòng kiểm tra lại.';
       if (e is DioException && e.response?.data != null) {
         errorMsg = e.response?.data['message'] ?? errorMsg;
       }
@@ -99,30 +94,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  Future<void> _register() async {
+  Future<void> _resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_agreedToTerms) {
-      _showSnackBar('Bạn cần đồng ý với điều khoản dịch vụ', Colors.redAccent);
-      return;
-    }
     if (!_isOTPSent) {
-      _showSnackBar('Vui lòng xác thực email trước', Colors.redAccent);
+      _showSnackBar('Vui lòng gửi yêu cầu OTP trước', Colors.redAccent);
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      await _authService.register(
+      await _authService.resetPassword(
         email: _emailController.text,
         otp: _otpController.text,
-        password: _passwordController.text,
-        fullName: "${_lastNameController.text} ${_firstNameController.text}".trim(),
+        newPassword: _passwordController.text,
       );
 
       setState(() => _isLoading = false);
-      _showSnackBar('Đăng ký tài khoản thành công!', const Color(0xFF10B981));
-      
-      // Tự động chuyển hướng về trang Đăng nhập sau 1.5 giây
+      _showSnackBar('Khôi phục mật khẩu thành công!', const Color(0xFF10B981));
+
+      // Redirect to login screen after 1.5 seconds
       if (mounted) {
         Future.delayed(const Duration(milliseconds: 1500), () {
           if (mounted) {
@@ -135,7 +125,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      String errorMsg = 'Đăng ký thất bại. Vui lòng kiểm tra lại.';
+      String errorMsg = 'Đặt lại mật khẩu thất bại. Vui lòng kiểm tra lại.';
       if (e is DioException && e.response?.data != null) {
         errorMsg = e.response?.data['message'] ?? errorMsg;
       }
@@ -174,8 +164,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const SizedBox(height: 10),
                 Text(
-                  'Tạo tài khoản',
+                  'Quên mật khẩu',
                   style: GoogleFonts.inter(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -184,36 +175,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Bắt đầu hành trình tập luyện của bạn ngay hôm nay.',
+                  'Nhập email đã đăng ký để thiết lập lại mật khẩu mới.',
                   style: GoogleFonts.inter(fontSize: 14, color: slate600),
                 ),
                 const SizedBox(height: 32),
 
-                // Name Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: CustomTextField(
-                        label: 'Họ',
-                        hintText: 'Nguyễn',
-                        controller: _lastNameController,
-                        validator: (v) => v!.isEmpty ? 'Yêu cầu' : null,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: CustomTextField(
-                        label: 'Tên',
-                        hintText: 'Văn A',
-                        controller: _firstNameController,
-                        validator: (v) => v!.isEmpty ? 'Yêu cầu' : null,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Email Field with Verify Button
+                // Email Field with Send/Resend Button
                 Stack(
                   children: [
                     CustomTextField(
@@ -234,7 +201,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: TextButton(
                         onPressed: (_start > 0 && _start < 120) ? null : _requestOTP,
                         child: Text(
-                          (_start > 0 && _start < 120) ? '${_start}s' : 'Xác thực',
+                          (_start > 0 && _start < 120) ? '${_start}s' : (_isOTPSent ? 'Gửi lại' : 'Gửi mã'),
                           style: GoogleFonts.inter(
                             color: (_start > 0 && _start < 120) ? Colors.grey : emerald500,
                             fontWeight: FontWeight.bold,
@@ -257,108 +224,57 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     validator: (v) => v!.length != 6 ? 'Nhập mã 6 chữ số' : null,
                   ),
                   const SizedBox(height: 20),
+
+                  // Password Field
+                  CustomTextField(
+                    label: 'Mật khẩu mới',
+                    hintText: '••••••••',
+                    controller: _passwordController,
+                    obscureText: !_isPasswordVisible,
+                    prefixIcon: LucideIcons.lock,
+                    onChanged: _checkPasswordStrength,
+                    validator: (v) => v!.length < 8 ? 'Tối thiểu 8 ký tự' : null,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible ? LucideIcons.eye : LucideIcons.eyeOff,
+                        size: 18,
+                        color: slate600,
+                      ),
+                      onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Strength Indicator
+                  PasswordStrengthBar(strength: _passwordStrength),
+                  const SizedBox(height: 32),
+
+                  // Reset Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _resetPassword,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: emerald500,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : Text(
+                              'Đặt lại mật khẩu',
+                              style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
                 ],
-
-                // Password Field
-                CustomTextField(
-                  label: 'Mật khẩu',
-                  hintText: '••••••••',
-                  controller: _passwordController,
-                  obscureText: !_isPasswordVisible,
-                  prefixIcon: LucideIcons.lock,
-                  onChanged: _checkPasswordStrength,
-                  validator: (v) => v!.length < 8 ? 'Tối thiểu 8 ký tự' : null,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _isPasswordVisible ? LucideIcons.eye : LucideIcons.eyeOff,
-                      size: 18,
-                      color: slate600,
-                    ),
-                    onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                
-                // Strength Indicator
-                PasswordStrengthBar(strength: _passwordStrength),
-                const SizedBox(height: 24),
-
-                // Terms Checkbox
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: Checkbox(
-                        value: _agreedToTerms,
-                        activeColor: emerald500,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                        onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Tôi đồng ý với các Điều khoản và Chính sách',
-                        style: GoogleFonts.inter(fontSize: 13, color: slate600),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-
-                // Register Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _register,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: emerald500,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : Text(
-                            'Tạo tài khoản',
-                            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                  ),
-                ),
                 const SizedBox(height: 40),
-                // Login Link
-                Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Đã có tài khoản? ',
-                        style: GoogleFonts.inter(color: slate600),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const LoginScreen()),
-                          );
-                        },
-                        child: Text(
-                          'Đăng nhập ngay',
-                          style: GoogleFonts.inter(
-                            color: emerald500,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -367,4 +283,3 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
-

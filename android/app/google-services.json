@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "595710961751",
+    "project_id": "omnigym-solution",
+    "storage_bucket": "omnigym-solution.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:595710961751:android:1ac4c4c88ef41ca1419b12",
+        "android_client_info": {
+          "package_name": "com.example.omnigym_solution_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "595710961751-ltnaoqusqd3ffmtae3rrnmq1qg8kd5f2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.omnigym_solution_app",
+            "certificate_hash": "224e92e8acd243191c228283bf894301c0451444"
+          }
+        },
+        {
+          "client_id": "595710961751-8n671e6c6p2thcc8q8p023cjtv50qhha.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPvZhcbH7sICZ1Z85DfEZLpm3ANRb7Xpo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
