@@ -5,6 +5,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:io';
+import '../config/env.dart';
+import '../config/api_endpoints.dart';
 
 class AuthService {
   late Dio _dio;
@@ -13,7 +15,7 @@ class AuthService {
   AuthService() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: 'http://10.0.2.2:3000',
+        baseUrl: Env.baseUrl,
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 15),
         headers: {
@@ -23,6 +25,23 @@ class AuthService {
       ),
     );
     _initPersistentSession();
+    _initAuthInterceptor();
+  }
+
+  /// Cấu hình Interceptor để tự động gắn Bearer Token vào header mỗi request
+  void _initAuthInterceptor() {
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final prefs = await SharedPreferences.getInstance();
+          final token = prefs.getString('auth_token');
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          return handler.next(options);
+        },
+      ),
+    );
   }
 
   /// Khởi tạo quản lý Cookie để duy trì Session từ Express
@@ -41,14 +60,41 @@ class AuthService {
   /// Đăng nhập
   Future<Response> login(String email, String password) async {
     try {
-      final response = await _dio.post('/api/auth/login', data: {
+      final response = await _dio.post(ApiEndpoints.login, data: {
         'identifier': email,
         'password': password,
       });
 
       if (response.statusCode == 200) {
-        // Lưu thông tin user vào SharedPreferences
+        // Lưu thông tin user và token vào SharedPreferences
         final prefs = await SharedPreferences.getInstance();
+        final token = response.data['token'];
+        if (token != null) {
+          await prefs.setString('auth_token', token);
+        }
+        await prefs.setString('user_data', jsonEncode(response.data['user']));
+        await prefs.setBool('is_logged_in', true);
+      }
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Đăng nhập bằng Google
+  Future<Response> loginWithGoogle(String idToken) async {
+    try {
+      final response = await _dio.post(ApiEndpoints.googleLogin, data: {
+        'idToken': idToken,
+      });
+
+      if (response.statusCode == 200) {
+        // Lưu thông tin user và token vào SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        final token = response.data['token'];
+        if (token != null) {
+          await prefs.setString('auth_token', token);
+        }
         await prefs.setString('user_data', jsonEncode(response.data['user']));
         await prefs.setBool('is_logged_in', true);
       }
@@ -61,7 +107,7 @@ class AuthService {
   /// Gửi yêu cầu mã OTP qua email
   Future<Response> requestOTP(String email) async {
     try {
-      return await _dio.post('/api/auth/request-otp', data: {'identifier': email});
+      return await _dio.post(ApiEndpoints.requestOtp, data: {'identifier': email});
     } catch (e) {
       rethrow;
     }
@@ -73,16 +119,18 @@ class AuthService {
     required String otp,
     required String password,
     required String fullName,
+    int roleId = 3, // Mặc định 3 là Customer (Khách hàng)
   }) async {
     try {
       final data = {
         "identifier": email,
         "otp": otp,
         "password": password,
+        "role_id": roleId,
         "personalInfo": {"full_name": fullName}
       };
 
-      return await _dio.post('/api/auth/register', data: data);
+      return await _dio.post(ApiEndpoints.register, data: data);
     } catch (e) {
       rethrow;
     }
@@ -91,7 +139,7 @@ class AuthService {
   /// Đăng xuất
   Future<void> logout() async {
     try {
-      await _dio.post('/api/auth/logout');
+      await _dio.post(ApiEndpoints.logout);
     } finally {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
@@ -103,5 +151,48 @@ class AuthService {
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('is_logged_in') ?? false;
+  }
+
+  /// Lấy thông tin user đã lưu
+  static Future<Map<String, dynamic>?> getUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? userStr = prefs.getString('user_data');
+    if (userStr != null) {
+      return jsonDecode(userStr) as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  /// Lấy token xác thực đã lưu
+  static Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token');
+  }
+
+  /// Yêu cầu khôi phục mật khẩu (Gửi OTP)
+  Future<Response> forgotPassword(String email) async {
+    try {
+      return await _dio.post(ApiEndpoints.forgotPassword, data: {'email': email});
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Đặt lại mật khẩu mới bằng OTP
+  Future<Response> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      final data = {
+        'email': email,
+        'otp': otp,
+        'newPassword': newPassword,
+      };
+      return await _dio.post(ApiEndpoints.resetPassword, data: data);
+    } catch (e) {
+      rethrow;
+    }
   }
 }

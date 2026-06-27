@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:omnigym_solution_app/auth/login_screen.dart';
 import 'package:omnigym_solution_app/services/auth_service.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'screens/home_screen.dart';
+import 'screens/schedule_screen.dart';
+import 'screens/posts_screen.dart';
+import 'screens/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,31 +36,82 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Trang chủ tạm thời
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _screens = const [
+    HomeScreen(),
+    ScheduleScreen(),
+    PostsScreen(),
+    ProfileScreen(),
+  ];
+
+  @override
   Widget build(BuildContext context) {
+    const emerald500 = Color(0xFF10B981);
+    const slate900 = Color(0xFF0F172A);
+    const slate600 = Color(0xFF475569);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('OmniGym - Trang chủ'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await AuthService().logout();
-              if (context.mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              }
-            },
-          )
-        ],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
       ),
-      body: const Center(child: Text('Chào mừng bạn đến với OmniGym!')),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: slate900.withOpacity(0.06),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: (index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: emerald500,
+          unselectedItemColor: slate600,
+          selectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11),
+          unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 11),
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(LucideIcons.home, size: 20),
+              activeIcon: Icon(LucideIcons.home, size: 20, color: emerald500),
+              label: 'Trang chủ',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(LucideIcons.calendar, size: 20),
+              activeIcon: Icon(LucideIcons.calendar, size: 20, color: emerald500),
+              label: 'Lịch tập',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(LucideIcons.newspaper, size: 20),
+              activeIcon: Icon(LucideIcons.newspaper, size: 20, color: emerald500),
+              label: 'Bài viết',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(LucideIcons.user, size: 20),
+              activeIcon: Icon(LucideIcons.user, size: 20, color: emerald500),
+              label: 'Cá nhân',
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
